@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS 0.6</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#03080b;color:#eafcff;font-family:Arial,sans-serif}
+.app{text-align:center;width:min(92vw,430px)}h1{font-size:42px;letter-spacing:7px;color:#72eaff}
+#status{color:#9ab0b6;margin-bottom:25px}.orb{width:190px;height:190px;border:2px solid #4de1ff;border-radius:50%;margin:auto;display:flex;align-items:center;justify-content:center;box-shadow:0 0 28px #16bddb,inset 0 0 35px #123d49}
+.active{animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.06);box-shadow:0 0 80px #20d8f5}}
+button{margin-top:25px;padding:15px 24px;border-radius:30px;border:1px solid #50dcfa;background:#07151a;color:white;font-size:17px}
+#heard,#reply{min-height:25px;margin-top:18px}#reply{color:#72eaff}
+.help{font-size:13px;color:#728a92;line-height:1.9;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>JARVIS</h1>
+<div id="status">برای شروع روی فعال‌سازی بزن</div>
+<div id="orb" class="orb">OFFLINE</div>
+<button id="start">🎙️ فعال‌سازی جارویس</button>
+<button id="mic" style="display:none">🎙️ صحبت کن</button>
+<div id="heard"></div><div id="reply"></div>
+<div class="help">اول روی «فعال‌سازی جارویس» بزن و اجازه میکروفون را روی Allow بگذار.<br>بعد بگو: «برو یوتیوب»</div>
+</div>
+<script>
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const statusEl=document.getElementById('status'),orb=document.getElementById('orb');
+const start=document.getElementById('start'),mic=document.getElementById('mic');
+const heard=document.getElementById('heard'),reply=document.getElementById('reply');
+
+function speak(t){
+ reply.textContent='جارویس: '+t;
+ if('speechSynthesis' in window){
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t);u.lang='fa-IR';u.rate=.9;speechSynthesis.speak(u);
+ }
+}
+function openSite(url){
+ const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
+}
+function command(raw){
+ const t=raw.toLowerCase().replace(/[؟?!.,،]/g,' ').trim();
+ heard.textContent='شنیدم: '+raw;
+ if(/یوتیوب|یتیوب|یوتوب|youtube/.test(t)){
+  speak('حتماً، یوتیوب را باز می‌کنم.');
+  setTimeout(()=>openSite('https://www.youtube.com/'),700);return;
+ }
+ if(t.includes('گوگل')){
+  const q=t.replace(/گوگل/g,'').replace(/برو/g,'').trim();
+  speak(q?'در گوگل جستجو می‌کنم.':'گوگل را باز می‌کنم.');
+  setTimeout(()=>openSite(q?'https://www.google.com/search?q='+encodeURIComponent(q):'https://www.google.com/'),700);return;
+ }
+ if(t.includes('ساعت')){const d=new Date();speak('الان ساعت '+d.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})+' است.');return}
+ if(t.includes('تاریخ')){speak('امروز '+new Date().toLocaleDateString('fa-IR')+' است.');return}
+ if(t.includes('سلام')){speak('سلام! جارویس آنلاین است.');return}
+ speak('این فرمان را هنوز یاد نگرفته‌ام.');
+}
+
+if(!SR){
+ statusEl.textContent='مرورگر این گوشی تشخیص صدا را پشتیبانی نمی‌کند.';
+ start.disabled=true;
+}else{
+ const r=new SR();r.lang='fa-IR';r.continuous=false;r.interimResults=false;
+
+ start.onclick=()=>{
+  try{
+   statusEl.textContent='درخواست اجازه میکروفون...';
+   r.start();
+  }catch(e){}
+ };
+
+ r.onstart=()=>{
+  statusEl.textContent='میکروفون فعال شد؛ صحبت کن';
+  orb.textContent='LISTENING';orb.classList.add('active');
+  start.style.display='none';mic.style.display='inline-block';
+ };
+
+ mic.onclick=()=>{
+  try{
+   heard.textContent='';reply.textContent='';
+   statusEl.textContent='گوش می‌دهم...';
+   r.start();
+  }catch(e){}
+ };
+
+ r.onresult=e=>command(e.results[0][0].transcript);
+
+ r.onerror=e=>{
+  orb.classList.remove('active');orb.textContent='OFFLINE';
+  if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+   statusEl.textContent='اجازه میکروفون داده نشد';
+   speak('از تنظیمات مرورگر، اجازه میکروفون را روی Allow بگذار و دوباره تلاش کن.');
+  }else if(e.error==='no-speech'){
+   statusEl.textContent='صدایی دریافت نشد؛ دوباره بزن';
+  }else{
+   statusEl.textContent='خطا در تشخیص صدا';
+   speak('لطفاً دوباره تلاش کن.');
+  }
+ };
+
+ r.onend=()=>{
+  orb.classList.remove('active');
+  if(start.style.display==='none'){orb.textContent='ONLINE';statusEl.textContent='آماده‌ام؛ برای فرمان دوباره بزن.';}
+ };
+}
+</script>
+</body>
+</html>
